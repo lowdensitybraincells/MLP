@@ -5,7 +5,7 @@ def ReLU(x):
     x = np.array(x)
     return np.multiply(x, x>0, dtype=np.float32)
 
-class layer:
+class Layer:
     def __init__(self, size, activation = ReLU):
         self.size = size
         self.activation = activation
