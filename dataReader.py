@@ -54,4 +54,4 @@ def getData(isBlackAndWhite = False):
 
     images = images.reshape(image_count,28,28)
 
-    return labels, images
+    return images, labels
