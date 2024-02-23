@@ -1,10 +1,5 @@
 import numpy as np
-
-
-def ReLU(x):
-    x = np.array(x)
-    return np.multiply(x, x>0, dtype=np.float32)
-
+from extraFuncLib import ReLU
 class Layer:
     def __init__(self, size, activation = ReLU):
         self.size = size
@@ -15,7 +10,7 @@ class Layer:
     def process(self, x):
         z = np.matmul(self.weights, x) + self.bias
         a = self.activation(z)
-        return a 
+        return z, a 
 
     def updateParams(self, newWeights, newBias):
         self.weights = newWeights
