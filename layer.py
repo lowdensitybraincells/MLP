@@ -7,16 +7,14 @@ class Layer:
         self.activation = activation
         self.bias = np.zeros((nodeCount, 1))
         self.weights = np.random.rand(nodeCount, paramCount)
-        print(np.shape(self.weights))
-
 
     def process(self, x):
-
-        print(np.shape(self.weights), np.shape(self.bias))
+        x = np.squeeze(x)
+        x = np.expand_dims(x, axis=1)
         z = np.matmul(self.weights, x) + self.bias
         a = self.activation(z)
 
-        return z, a 
+        return np.squeeze(z), np.squeeze(a) 
 
     def updateParams(self, newWeights, newBias):
         self.weights = newWeights
