@@ -29,17 +29,19 @@ class Network:
                 self.hiddenLayers[i] = Layer(self.layerSize, self.layerSize)
             self.activationDerivative = step
 
-    def iterate(self, ):
-        ## shuffle images
-        rand_image = self.images(np.random.rand()) # get the label too
-        Z = np.zeros([self.batchSize, self.layerSize, self.size+1])
-        A = np.zeros([self.batchSize, self.layerSize, self.size+1])
-        Z_L = np.zeros([self.batchSize, self.predictionSize])
-        A_L = np.zeros([self.batchSize, self.predictionSize])
-        for i in range(self.batchSize):
-            Z[i,...], A[i,...], Z_L[i,...], A_L[i,...] = self.forwardPropagate(rand_image)
+    def iterate(self, totalEpochs):
+        for _ in range(totalEpochs):
+            ## shuffle images
+            rand_ind = np.random.rand(self.batchSize)
+            rand_image = self.images[rand_ind] # get the label too
+            Z = np.zeros([self.batchSize, self.layerSize, self.size+1])
+            A = np.zeros([self.batchSize, self.layerSize, self.size+1])
+            Z_L = np.zeros([self.batchSize, self.predictionSize])
+            A_L = np.zeros([self.batchSize, self.predictionSize])
+            for i in range(self.batchSize):
+                Z[i,...], A[i,...], Z_L[i,...], A_L[i,...] = self.forwardPropagate(rand_image)
 
-        # self.backPropagate(Z, A, Z_L, A_L, label)
+            #self.backPropagate(Z, A, Z_L, A_L, rand_ind)
 
         pass
 
