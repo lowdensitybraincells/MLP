@@ -3,7 +3,7 @@ from layer import Layer
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, size=10, layerSize=100, learningRate=0.015, activation=0, activationDerivative=0):
+    def __init__(self, size=8, layerSize=100, learningRate=0.015, activation=0, activationDerivative=0):
         
         self.size = size
         self.layerSize = layerSize
@@ -37,7 +37,7 @@ class Network:
         # trains the model in set amount of epochs, using a specific batch size
         for _ in range(totalEpochs):
             # shuffles images
-            randomised_indices = np.random.randint(low=0, high=labels[0].size-1, size=(labels[0].size))
+            randomised_indices = np.random.randint(low=0, high=labels.shape[0]-1, size=(labels.shape[0]))
             for i in range(np.int32(np.floor(randomised_indices.size/batchSize))):
                 indices = randomised_indices[:batchSize]
                 randomised_indices = randomised_indices[batchSize:]
@@ -84,21 +84,15 @@ class Network:
         # output layer
         labels = np.array([self.labels[i] for i in indices])
         data = np.array([self.data[i] for i in indices])
-        print(np.shape(a_L), np.shape(labels))
-        return   
-        delta = np.multiply(a_L-labels, self.activationDerivative(z_L))
+        delta_L = np.multiply(a_L-labels, self.activationDerivative(z_L))
         
-        return
-        # z[-2] represents the output of the last hidden layer
-        delta_l = np.zeros([self.layerSize, self.size])
-        delta_l[:, -1] = np.multiply(self.outputLayer.weights.T@delta, self.activationDerivative(z[:,-1,np.newaxis])).squeeze()
+        delta_l = np.zeros([indices.size, self.size, self.layerSize])
+        print(delta_l.shape, np.shape(self.outputLayer.weights.T), np.shape(delta_L))
+        delta_l[:,-1,:] = np.einsum("ij,kj->ki",self.outputLayer.weights.T,delta_L) * self.activationDerivative(z[:,-1,np.newaxis])
 
+        return
         for i in reversed(range(self.size-1)):
             delta_l[:, i] = np.multiply(self.hiddenLayers[i].weights.T@delta_l[:,i+1,np.newaxis], self.activationDerivative(np.expand_dims(z[:,i-1], axis=1))).squeeze()
             # nWeights = self.hiddenLayers[i].weights - self.learningRate/self.layerSize * sum(...)
             # nBias = self.hiddenLayers[i].bias - self.learningRate/self.layerSize * sum(...)
             # self.hiddenLayers[i].updateParams(nWeights, nBias) 
-
-
-    
-       
