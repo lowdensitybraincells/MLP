@@ -3,20 +3,16 @@ from layer import Layer
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, data, labels, size=10, layerSize=100, learningRate=0.015, batchSize = 16, activation=0, activationDerivative=0):
+    def __init__(self, size=10, layerSize=100, learningRate=0.015, activation=0, activationDerivative=0):
         
-        self.data = data
-        self.labels = labels
         self.size = size
         self.layerSize = layerSize
         self.learningRate = learningRate
-        self.batchSize = batchSize
-        self.featureSize = np.size(data[0])
-        self.predictionSize = np.size(list(set(labels)))
-        
-        self.inputLayer = Layer(self.layerSize, self.featureSize, identity)
-        self.outputLayer = Layer(self.predictionSize, self.layerSize, identity)
+        self.featureSize = 0
+        self.predictionSize = 0 
 
+        self.inputLayer = 0
+        self.outputLayer = 0
         self.hiddenLayers = np.zeros(size, dtype=Layer)
         if activation:
             print("Using given activation function")
@@ -29,21 +25,30 @@ class Network:
                 self.hiddenLayers[i] = Layer(self.layerSize, self.layerSize)
             self.activationDerivative = step
 
-    def iterate(self, totalEpochs):
+    def train(self, data, labels, totalEpochs, batchSize):
+        self.data = data
+        self.labels = labels
+        self.featureSize = np.size(data[0])
+        self.predictionSize = np.size(labels[0])
+
+        self.inputLayer = Layer(self.layerSize, self.featureSize, identity)
+        self.outputLayer = Layer(self.predictionSize, self.layerSize, identity)
+
+        # trains the model in set amount of epochs, using a specific batch size
         for _ in range(totalEpochs):
-            ## shuffle images
-            rand_ind = np.random.rand(self.batchSize)
-            rand_image = self.images[rand_ind] # get the label too
-            Z = np.zeros([self.batchSize, self.layerSize, self.size+1])
-            A = np.zeros([self.batchSize, self.layerSize, self.size+1])
-            Z_L = np.zeros([self.batchSize, self.predictionSize])
-            A_L = np.zeros([self.batchSize, self.predictionSize])
-            for i in range(self.batchSize):
-                Z[i,...], A[i,...], Z_L[i,...], A_L[i,...] = self.forwardPropagate(rand_image)
-
-            #self.backPropagate(Z, A, Z_L, A_L, rand_ind)
-
-        pass
+            # shuffles images
+            randomised_indices = np.random.randint(low=0, high=labels[0].size-1, size=(labels[0].size))
+            for i in range(np.int32(np.floor(randomised_indices.size/batchSize))):
+                indices = randomised_indices[:batchSize]
+                randomised_indices = randomised_indices[batchSize:]
+                Z = np.zeros([batchSize, self.layerSize, self.size+1])
+                A = np.zeros([batchSize, self.layerSize, self.size+1])
+                Z_L = np.zeros([batchSize, self.predictionSize])
+                A_L = np.zeros([batchSize, self.predictionSize])               
+                for j, index in enumerate(indices):
+                    Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:,:])
+                self.backPropagate(Z, A, Z_L, A_L, indices)
+            print(f"finished epoch {_}")
 
     def forwardPropagate(self, image):
         # returns the outputs of the forward propagation
@@ -75,10 +80,15 @@ class Network:
         z_L, a_L = self.outputLayer.process(a[:,-1])
         return z, a, z_L, a_L
             
-    def backPropagate(self, z, a, z_L, a_L, label):
+    def backPropagate(self, z, a, z_L, a_L, indices):
         # output layer
-        delta = np.multiply(a_L-label, self.activationDerivative(z_L))
-
+        labels = np.array([self.labels[i] for i in indices])
+        data = np.array([self.data[i] for i in indices])
+        print(np.shape(a_L), np.shape(labels))
+        return   
+        delta = np.multiply(a_L-labels, self.activationDerivative(z_L))
+        
+        return
         # z[-2] represents the output of the last hidden layer
         delta_l = np.zeros([self.layerSize, self.size])
         delta_l[:, -1] = np.multiply(self.outputLayer.weights.T@delta, self.activationDerivative(z[:,-1,np.newaxis])).squeeze()
