@@ -41,8 +41,8 @@ class Network:
             for i in range(np.int32(np.floor(randomised_indices.size/batchSize))):
                 indices = randomised_indices[:batchSize]
                 randomised_indices = randomised_indices[batchSize:]
-                Z = np.zeros([batchSize, self.layerSize, self.size+1])
-                A = np.zeros([batchSize, self.layerSize, self.size+1])
+                Z = np.zeros([batchSize, self.size+1, self.layerSize])
+                A = np.zeros([batchSize, self.size+1, self.layerSize])
                 Z_L = np.zeros([batchSize, self.predictionSize])
                 A_L = np.zeros([batchSize, self.predictionSize])               
                 for j, index in enumerate(indices):
@@ -54,8 +54,8 @@ class Network:
         # returns the outputs of the forward propagation
         # this includes a (output post non-linear function, if any)
         # and z (output pre non-linear function)
-        # a and z are sizes (self.size + 2) and account for
-        # input, hidden and output layers in that order
+        # a and z are sizes (self.size + 1) and account for
+        # input and hidden layers in that order
 
 
         # converts image into a row vector and iterates on the layers
@@ -78,21 +78,38 @@ class Network:
         
         # final layer outputs
         z_L, a_L = self.outputLayer.process(a[:,-1])
-        return z, a, z_L, a_L
+        return z.T, a.T, z_L, a_L
             
     def backPropagate(self, z, a, z_L, a_L, indices):
-        # output layer
         labels = np.array([self.labels[i] for i in indices])
         data = np.array([self.data[i] for i in indices])
-        delta_L = np.multiply(a_L-labels, self.activationDerivative(z_L))
-        
-        delta_l = np.zeros([indices.size, self.size, self.layerSize])
-        print(delta_l.shape, np.shape(self.outputLayer.weights.T), np.shape(delta_L))
-        delta_l[:,-1,:] = np.einsum("ij,kj->ki",self.outputLayer.weights.T,delta_L) * self.activationDerivative(z[:,-1,np.newaxis])
+        data = np.reshape(data, [data.shape[0], data.shape[1]*data.shape[2]])
+        # output layer 
+        delta_L = a_L-labels
+        nWeights = self.outputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
+        nBias = self.outputLayer.bias - self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
+        self.outputLayer.updateParams(nWeights, nBias)
 
-        return
-        for i in reversed(range(self.size-1)):
-            delta_l[:, i] = np.multiply(self.hiddenLayers[i].weights.T@delta_l[:,i+1,np.newaxis], self.activationDerivative(np.expand_dims(z[:,i-1], axis=1))).squeeze()
-            # nWeights = self.hiddenLayers[i].weights - self.learningRate/self.layerSize * sum(...)
-            # nBias = self.hiddenLayers[i].bias - self.learningRate/self.layerSize * sum(...)
-            # self.hiddenLayers[i].updateParams(nWeights, nBias) 
+        # hidden layers
+        delta_l = np.zeros([indices.size, self.size, self.layerSize])
+        delta_l[:,-1,:] = np.einsum("ij,kj->ki",self.outputLayer.weights.T,delta_L) * self.activationDerivative(z[:,-1,:])
+
+        for i in reversed(range(1, self.size-1)):
+            # calculates for the next layer
+            delta_l[:,i-1,:] = np.einsum("ij,kj->ki",self.hiddenLayers[i].weights.T,delta_l[:,i,:]) * self.activationDerivative(z[:,i,:])
+            
+            # updates the current layer
+
+            nWeights = self.hiddenLayers[i].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,i,:], a[:,i,:].T )
+            nBias = self.hiddenLayers[i].bias - self.learningRate/indices.size * np.sum(delta_l[:,i,:],axis=0)[:,np.newaxis]
+            self.hiddenLayers[i].updateParams(nWeights, nBias) 
+        
+        nWeights = self.hiddenLayers[0].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,0,:], a[:,0,:].T )
+        nBias = self.hiddenLayers[0].bias - self.learningRate/indices.size * np.sum(delta_l[:,0,:],axis=0)[:,np.newaxis]
+        self.hiddenLayers[0].updateParams(nWeights, nBias) 
+
+        # input layer
+        delta_in = np.einsum("ij,kj->kj",self.inputLayer.weights.T,delta_l[:,0,:])
+        nWeights = self.inputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
+        nBias = self.inputLayer.bias - self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
+        self.inputLayer.updateParams(nWeights, nBias) 

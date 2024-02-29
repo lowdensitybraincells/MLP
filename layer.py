@@ -18,7 +18,7 @@ class Layer:
 
     def updateParams(self, newWeights, newBias):
         self.weights = newWeights
-        self.bias = newBias 
+        self.bias = np.squeeze(newBias)[:,np.newaxis]
 
     def getWeights(self):
         return self.weights
