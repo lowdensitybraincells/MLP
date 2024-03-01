@@ -3,7 +3,7 @@ from layer import Layer
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, size=8, layerSize=100, learningRate=0.015, activation=0, activationDerivative=0):
+    def __init__(self, size=3, layerSize=20, learningRate=0.015, activation=0, activationDerivative=0):
         
         self.size = size
         self.layerSize = layerSize
@@ -31,8 +31,9 @@ class Network:
         self.featureSize = np.size(data[0])
         self.predictionSize = np.size(labels[0])
 
-        self.inputLayer = Layer(self.layerSize, self.featureSize, identity)
-        self.outputLayer = Layer(self.predictionSize, self.layerSize, identity)
+        if self.inputLayer == 0 and self.outputLayer == 0:
+            self.inputLayer = Layer(self.layerSize, self.featureSize, identity)
+            self.outputLayer = Layer(self.predictionSize, self.layerSize, identity)
 
         # trains the model in set amount of epochs, using a specific batch size
         for _ in range(totalEpochs):
@@ -47,7 +48,7 @@ class Network:
                 A_L = np.zeros([batchSize, self.predictionSize])               
                 for j, index in enumerate(indices):
                     Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:,:])
-                self.backPropagate(Z, A, Z_L, A_L, indices)
+                # self.backPropagate(Z, A, Z_L, A_L, indices)
             print(f"finished epoch {_}")
 
     def forwardPropagate(self, image):
@@ -86,8 +87,8 @@ class Network:
         data = np.reshape(data, [data.shape[0], data.shape[1]*data.shape[2]])
         # output layer 
         delta_L = a_L-labels
-        nWeights = self.outputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
-        nBias = self.outputLayer.bias - self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
+        nWeights = self.outputLayer.weights + self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
+        nBias = self.outputLayer.bias + self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
         self.outputLayer.updateParams(nWeights, nBias)
 
         # hidden layers
@@ -100,16 +101,67 @@ class Network:
             
             # updates the current layer
 
-            nWeights = self.hiddenLayers[i].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,i,:], a[:,i,:].T )
-            nBias = self.hiddenLayers[i].bias - self.learningRate/indices.size * np.sum(delta_l[:,i,:],axis=0)[:,np.newaxis]
+            nWeights = self.hiddenLayers[i].weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,i,:], a[:,i,:].T )
+            nBias = self.hiddenLayers[i].bias + self.learningRate/indices.size * np.sum(delta_l[:,i,:],axis=0)[:,np.newaxis]
             self.hiddenLayers[i].updateParams(nWeights, nBias) 
         
-        nWeights = self.hiddenLayers[0].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,0,:], a[:,0,:].T )
-        nBias = self.hiddenLayers[0].bias - self.learningRate/indices.size * np.sum(delta_l[:,0,:],axis=0)[:,np.newaxis]
+        nWeights = self.hiddenLayers[0].weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,0,:], a[:,0,:].T )
+        nBias = self.hiddenLayers[0].bias + self.learningRate/indices.size * np.sum(delta_l[:,0,:],axis=0)[:,np.newaxis]
         self.hiddenLayers[0].updateParams(nWeights, nBias) 
 
         # input layer
         delta_in = np.einsum("ij,kj->kj",self.inputLayer.weights.T,delta_l[:,0,:])
-        nWeights = self.inputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
-        nBias = self.inputLayer.bias - self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
+        nWeights = self.inputLayer.weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
+        nBias = self.inputLayer.bias + self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
         self.inputLayer.updateParams(nWeights, nBias) 
+    
+    def exportModel(self, fileName):
+        
+        if self.inputLayer == 0 and self.outputLayer == 0:
+            raise ValueError("Model hasn't been trained: layers are not initialised")
+        with open(fileName, "w") as file:
+            np.array(self.inputLayer.weights.shape).tofile(file=file, sep=',')
+            print("",file=file)
+            self.inputLayer.weights.tofile(file, sep=',')
+            print("",file=file)
+            self.inputLayer.bias.tofile(file, sep=',')
+            print("",file=file)
+
+            for layer in self.hiddenLayers:
+                layer.weights.tofile(file, sep=',')
+                print("",file=file)
+                layer.bias.tofile(file, sep=',')
+                print("",file=file)
+
+            
+            np.array(self.outputLayer.weights.shape).tofile(file=file, sep=',')
+            print("",file=file)
+            self.outputLayer.weights.tofile(file, sep=',')
+            print("",file=file)
+            self.outputLayer.bias.tofile(file, sep=',')
+            print("",file=file)
+    
+    def importModel(self, fileName):
+        with open(fileName, "r") as file:
+            if self.inputLayer != 0 or self.outputLayer != 0:
+                raise ValueError("Model has already been trained")
+            # input layer
+            shape = np.fromfile(file=file, sep=',', count=2, dtype=np.int32)
+            self.featureSize = np.size(shape[1])
+            self.layerSize = np.size(shape[0])
+            self.inputLayer = Layer(self.layerSize, self.featureSize, identity)
+            weights = np.fromfile(file=file, sep=',').reshape(shape)
+            bias = np.fromfile(file=file, sep=',')
+            self.inputLayer.updateParams(weights, bias)
+            # hidden layers
+            for i in range(self.hiddenLayers.size):
+                weights = np.fromfile(file=file, sep=',').reshape([self.layerSize, self.layerSize])
+                bias = np.fromfile(file=file, sep=',')
+                self.hiddenLayers[i].updateParams(weights, bias)
+            # output layer
+            shape = np.fromfile(file=file, sep=',', count=2, dtype=np.int32)
+            self.predictionSize = shape[0]
+            self.outputLayer = Layer(self.predictionSize, self.layerSize, identity)
+            weights = np.fromfile(file=file, sep=',').reshape(shape)
+            bias = np.fromfile(file=file, sep=',')
+            self.outputLayer.updateParams(weights, bias)

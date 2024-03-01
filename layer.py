@@ -5,7 +5,7 @@ class Layer:
         self.paramCount = paramCount
         self.nodeCount = nodeCount
         self.activation = activation
-        self.bias = np.zeros((nodeCount, 1))
+        self.bias = np.random.rand(nodeCount, 1)
         self.weights = np.random.rand(nodeCount, paramCount)
 
     def process(self, x):
