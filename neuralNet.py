@@ -47,8 +47,8 @@ class Network:
                 Z_L = np.zeros([batchSize, self.predictionSize])
                 A_L = np.zeros([batchSize, self.predictionSize])               
                 for j, index in enumerate(indices):
-                    Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:,:])
-                # self.backPropagate(Z, A, Z_L, A_L, indices)
+                    Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:])
+                self.backPropagate(Z, A, Z_L, A_L, indices)
             print(f"finished epoch {_}")
 
     def forwardPropagate(self, image):
@@ -84,10 +84,10 @@ class Network:
     def backPropagate(self, z, a, z_L, a_L, indices):
         labels = np.array([self.labels[i] for i in indices])
         data = np.array([self.data[i] for i in indices])
-        data = np.reshape(data, [data.shape[0], data.shape[1]*data.shape[2]])
         # output layer 
         delta_L = a_L-labels
-        nWeights = self.outputLayer.weights + self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
+        tmp = (self.learningRate/indices.size)*(np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T ))
+        nWeights = self.outputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
         nBias = self.outputLayer.bias + self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
         self.outputLayer.updateParams(nWeights, nBias)
 

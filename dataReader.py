@@ -52,6 +52,7 @@ def getData(isBlackAndWhite = False):
     if isBlackAndWhite:
         images = (images>0).astype(np.float32)
 
-    images = images.reshape(image_count,28,28)
+    images = images.reshape(image_count,-1)
+    images = images/np.max(images)
     labels = np.array([[i==label for i in range(labels.max()+1)] for label in labels], dtype=np.int32) 
     return images, labels
