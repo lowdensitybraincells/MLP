@@ -3,7 +3,7 @@ from layer import Layer
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, size=2, layerSize=500, learningRate=0.0007, activation=0, activationDerivative=0):
+    def __init__(self, size=2, layerSize=500, learningRate=0.01, activation=0, activationDerivative=0):
 
         
         self.size = size
