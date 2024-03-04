@@ -5,7 +5,7 @@ def identity(x):
 
 def ReLU(x):
     x = np.array(x)
-    return np.multiply(x, x>0, dtype=np.float32)
+    return np.multiply(0.1*x, x<0, dtype=np.float32) + np.multiply(x, x>0, dtype=np.float32)
 
 def step(x):
     x = np.array(x)

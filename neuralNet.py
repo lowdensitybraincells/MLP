@@ -3,7 +3,8 @@ from layer import Layer
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, size=3, layerSize=20, learningRate=0.015, activation=0, activationDerivative=0):
+    def __init__(self, size=2, layerSize=500, learningRate=0.00035, activation=0, activationDerivative=0):
+
         
         self.size = size
         self.layerSize = layerSize
@@ -25,7 +26,7 @@ class Network:
                 self.hiddenLayers[i] = Layer(self.layerSize, self.layerSize)
             self.activationDerivative = step
 
-    def train(self, data, labels, totalEpochs, batchSize):
+    def train(self, data, labels, images_test, labels_test, totalEpochs, batchSize):
         self.data = data
         self.labels = labels
         self.featureSize = np.size(data[0])
@@ -49,7 +50,16 @@ class Network:
                 for j, index in enumerate(indices):
                     Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:])
                 self.backPropagate(Z, A, Z_L, A_L, indices)
-            print(f"finished epoch {_}")
+            
+            print(f"finished epoch {_}: ", end = '')
+            cnt = 0
+            loss = 0
+            for image, label in zip(images_test, labels_test):
+                ind, out = self.predict(image)
+                cnt += (ind == np.argmax(label))
+                loss += np.sum(np.power((out - label), 2))
+            loss = loss/labels_test.shape[0]
+            print("ind = {}, accuracy = {:2.2%}, cnt = {}, loss = {}".format(ind, cnt/labels_test.shape[0], cnt, loss))
 
     def forwardPropagate(self, image):
         # returns the outputs of the forward propagation
@@ -86,9 +96,8 @@ class Network:
         data = np.array([self.data[i] for i in indices])
         # output layer 
         delta_L = a_L-labels
-        tmp = (self.learningRate/indices.size)*(np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T ))
         nWeights = self.outputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
-        nBias = self.outputLayer.bias + self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
+        nBias = self.outputLayer.bias - self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
         self.outputLayer.updateParams(nWeights, nBias)
 
         # hidden layers
@@ -101,20 +110,26 @@ class Network:
             
             # updates the current layer
 
-            nWeights = self.hiddenLayers[i].weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,i,:], a[:,i,:].T )
-            nBias = self.hiddenLayers[i].bias + self.learningRate/indices.size * np.sum(delta_l[:,i,:],axis=0)[:,np.newaxis]
+            nWeights = self.hiddenLayers[i].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,i,:], a[:,i,:].T )
+            nBias = self.hiddenLayers[i].bias - self.learningRate/indices.size * np.sum(delta_l[:,i,:],axis=0)[:,np.newaxis]
             self.hiddenLayers[i].updateParams(nWeights, nBias) 
         
-        nWeights = self.hiddenLayers[0].weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,0,:], a[:,0,:].T )
-        nBias = self.hiddenLayers[0].bias + self.learningRate/indices.size * np.sum(delta_l[:,0,:],axis=0)[:,np.newaxis]
+        nWeights = self.hiddenLayers[0].weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_l[:,0,:], a[:,0,:].T )
+        nBias = self.hiddenLayers[0].bias - self.learningRate/indices.size * np.sum(delta_l[:,0,:],axis=0)[:,np.newaxis]
         self.hiddenLayers[0].updateParams(nWeights, nBias) 
 
         # input layer
         delta_in = np.einsum("ij,kj->kj",self.inputLayer.weights.T,delta_l[:,0,:])
-        nWeights = self.inputLayer.weights + self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
-        nBias = self.inputLayer.bias + self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
+        nWeights = self.inputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
+        nBias = self.inputLayer.bias - self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
         self.inputLayer.updateParams(nWeights, nBias) 
     
+    def predict(self, data):
+        _,_,_,out = self.forwardPropagate(data)
+        ind = np.argmax(out)
+        return ind, out
+
+
     def exportModel(self, fileName):
         
         if self.inputLayer == 0 and self.outputLayer == 0:

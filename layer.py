@@ -14,7 +14,11 @@ class Layer:
         z = np.matmul(self.weights, x) + self.bias
         a = self.activation(z)
 
-        return np.squeeze(z), np.squeeze(a) 
+        z = np.squeeze(z)
+        z = z/np.sum(np.abs(z))
+        a = np.squeeze(z)
+        a = a/np.sum(np.abs(z))
+        return z, a 
 
     def updateParams(self, newWeights, newBias):
         self.weights = newWeights
