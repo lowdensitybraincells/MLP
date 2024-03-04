@@ -9,4 +9,4 @@ def ReLU(x):
 
 def step(x):
     x = np.array(x)
-    return np.array(x>0, dtype=np.float32)
+    return  0.1 + 0.9*np.array(x>0, dtype=np.float32)
