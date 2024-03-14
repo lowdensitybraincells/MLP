@@ -10,3 +10,6 @@ def ReLU(x):
 def step(x):
     x = np.array(x)
     return  0.1 + 0.9*np.array(x>0, dtype=np.float32)
+
+def unity(x):
+    return np.ones(np.shape(x))

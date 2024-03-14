@@ -1,9 +1,11 @@
 import numpy as np
 from layer import Layer
+import math
+import matplotlib.pyplot as plt
 from extraFuncLib import identity, step
 
 class Network:
-    def __init__(self, size=2, layerSize=500, learningRate=0.01, activation=0, activationDerivative=0):
+    def __init__(self, size=2, layerSize=1000, learningRate=0.03, activation=0, activationDerivative=0):
 
         
         self.size = size
@@ -39,7 +41,7 @@ class Network:
         # trains the model in set amount of epochs, using a specific batch size
         for _ in range(totalEpochs):
             # shuffles images
-            randomised_indices = np.random.randint(low=0, high=labels.shape[0]-1, size=(labels.shape[0]))
+            randomised_indices = np.random.choice(np.arange(0, labels.shape[0]), size=labels.shape[0], replace=False)
             for i in range(np.int32(np.floor(randomised_indices.size/batchSize))):
                 indices = randomised_indices[:batchSize]
                 randomised_indices = randomised_indices[batchSize:]
@@ -49,7 +51,28 @@ class Network:
                 A_L = np.zeros([batchSize, self.predictionSize])               
                 for j, index in enumerate(indices):
                     Z[j,...], A[j,...], Z_L[j,...], A_L[j,...] = self.forwardPropagate(self.data[index,:])
-                self.backPropagate(Z, A, Z_L, A_L, indices)
+                if math.isnan(Z_L[0][0]) or math.isnan(A_L[0][0]): raise ValueError('NAN!')
+                # if i == 0:
+                #     print(Z[0,:,:10])
+                #     print(Z_L[0,:]) 
+                #     f, axarr = plt.subplots(4,4)
+                #     for j, index in enumerate(indices):
+                #         axarr[j//4,j%4].imshow(data[index,...].reshape([28,28]))
+                #         axarr[j//4,j%4].set_title(labels[index][1])
+                #         axarr[j//4,j%4].axis('off')
+                #     plt.show()
+                # cnt = 0
+                # cnta = 0
+                # if  _ == 5:
+                #     for j, index in enumerate(indices):
+                #         ind, out = self.predict(self.data[index, :])
+                #         print(out)
+                #         cnt += (ind == 0)
+                #         cnta += (self.labels[index][0] == 1)
+                #     print("p0: {}, p1: {}, a0: {}, a1: {}".format(cnt, batchSize-cnt, cnta, batchSize-cnta))
+
+                self.backPropagate(Z,A,Z_L,A_L,indices)
+
             
             print(f"finished epoch {_}: ", end = '')
             cnt = 0
@@ -61,6 +84,26 @@ class Network:
             loss = loss/labels_test.shape[0]
             print("ind = {}, accuracy = {:2.2%}, cnt = {}, loss = {}".format(ind, cnt/labels_test.shape[0], cnt, loss))
 
+
+        cnt = 0
+        loss = 0
+        for image, label in zip(images_test, labels_test):
+            ind, out = self.predict(image)
+            cnt += (ind == np.argmax(label))
+            loss += np.sum(np.power((out - label), 2))
+        loss = loss/labels_test.shape[0]
+        print("final test accuracy: {:2.2%}".format(cnt/labels_test.shape[0]))
+
+        f, axarr = plt.subplots(4,4)
+        j = 0
+        for image, label in zip(images_test, labels_test):
+            ind, out = self.predict(image)
+            axarr[(j//4)%4,j%4].imshow(image.reshape([28,28]))
+            axarr[(j//4)%4,j%4].set_title(f"actual: {label[1]}, predicted: {ind}")
+            axarr[(j//4)%4,j%4].axis('off')
+            j+=1
+            if (j%16==0):
+                plt.show()
     def forwardPropagate(self, image):
         # returns the outputs of the forward propagation
         # this includes a (output post non-linear function, if any)
@@ -98,6 +141,7 @@ class Network:
         delta_L = a_L-labels
         nWeights = self.outputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk", delta_L, a[:,-1,:].T )
         nBias = self.outputLayer.bias - self.learningRate/indices.size * np.sum(delta_L,axis=0)[:,np.newaxis]
+
         self.outputLayer.updateParams(nWeights, nBias)
 
         # hidden layers
@@ -119,7 +163,7 @@ class Network:
         self.hiddenLayers[0].updateParams(nWeights, nBias) 
 
         # input layer
-        delta_in = np.einsum("ij,kj->kj",self.inputLayer.weights.T,delta_l[:,0,:])
+        delta_in = np.einsum("ij,kj->ki",self.hiddenLayers[0].weights.T,delta_l[:,0,:])
         nWeights = self.inputLayer.weights - self.learningRate/indices.size * np.einsum("ij,ki->jk",delta_in, data.T )
         nBias = self.inputLayer.bias - self.learningRate/indices.size * np.sum(delta_in,axis=0)[:,np.newaxis]
         self.inputLayer.updateParams(nWeights, nBias) 

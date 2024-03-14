@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from extraFuncLib import ReLU
 class Layer:
     def __init__(self, nodeCount, paramCount, activation = ReLU):
@@ -15,9 +16,9 @@ class Layer:
         a = self.activation(z)
 
         z = np.squeeze(z)
-        z = z/np.sum(np.abs(z))
+        z = z/(np.sum(np.abs(z)))
         a = np.squeeze(z)
-        a = a/np.sum(np.abs(z))
+        a = a/(np.sum(np.abs(z)))
         return z, a 
 
     def updateParams(self, newWeights, newBias):
